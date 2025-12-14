@@ -5,8 +5,16 @@ import { ValidationPipe } from '@nestjs/common';
 import { ResponseEnvelopeInterceptor } from './common/interceptors/response-envelope.interceptor';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 
+import * as cookieParser from 'cookie-parser';
+import helmet from 'helmet';
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  app.use(helmet());
+
+  // Cookie
+  app.use(cookieParser());
 
   // CORS (Admin)
   app.enableCors({

@@ -4,6 +4,7 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
+  UnauthorizedException,
 } from '@nestjs/common';
 
 @Catch()
@@ -20,6 +21,13 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     let message = 'Internal server error';
     let type = 'INTERNAL_ERROR';
     let details: any[] = [];
+
+    if (exception instanceof UnauthorizedException) {
+      console.log('[ERROR] auth error', exception);
+      status = HttpStatus.UNAUTHORIZED;
+      code = 'AUTH_ERROR';
+      type = 'AUTH_ERROR';
+    }
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();

@@ -74,3 +74,72 @@ model Payment {
   @@index([planId, createdAt])
   @@index([status, createdAt])
 }
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum OAuthProvider {
+  GOOGLE
+  KAKAO
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  role      UserRole @default(USER)
+
+  passwordHash String?  @db.VarChar(255) // MVP: 이메일/비번 로그인용 (OAuth 도입 후에도 유지 가능)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  refreshTokens  RefreshToken[]
+  socialAccount  SocialAccount?
+}
+
+model RefreshToken {
+  id              String   @id @default(cuid())
+  userId          String
+  tokenHash       String   @unique
+  expiresAt       DateTime
+
+  revokedAt         DateTime?
+  replacedByTokenId String?
+  createdAt         DateTime @default(now())
+  lastUsedAt        DateTime?
+
+  userAgent       String?
+  ip              String?
+
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  replacedBy      RefreshToken? @relation("RefreshTokenRotation", fields: [replacedByTokenId], references: [id])
+  replaces        RefreshToken[] @relation("RefreshTokenRotation")
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+}
+
+model SocialAccount {
+  id              String        @id @default(cuid())
+  userId          String        @unique
+
+  provider        OAuthProvider
+  providerUserId  String
+
+  accessToken     String?
+  refreshToken    String?
+  scope           String?
+  expiresAt       DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+}
