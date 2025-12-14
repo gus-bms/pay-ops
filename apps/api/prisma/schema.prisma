@@ -1,0 +1,76 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum PaymentStatus {
+  CREATED      // 요청 접수
+  REJECTED     // 차단/거절로 종료 (PG 호출 없음)
+  RISK_REVIEW  // (다음 단계) 보류
+  PROCESSING   // (다음 단계) PG 호출 중
+  SUCCEEDED
+  FAILED
+  CANCELED
+}
+
+enum RiskDecision {
+  ALLOW
+  HOLD
+  BLOCK
+}
+
+enum RejectReason {
+  AMOUNT_NOT_ALLOWED // plan 가격표와 불일치(변조 의심)
+  PLAN_NOT_FOUND
+  PLAN_INACTIVE
+}
+
+model Plan {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  amount    Int      // KRW 기준 "원"
+  currency  String   @default("KRW")
+  isActive  Boolean  @default(true)
+
+  payments  Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  
+  requestedPlanId String
+  
+  planId          String?
+  plan            Plan?         @relation(fields: [planId], references: [id])
+
+  // 서버 산정 금액 (클라이언트 금액 신뢰 금지)
+  amount          Int
+  currency        String        @default("KRW")
+
+  status          PaymentStatus @default(CREATED)
+
+  // 차단/보류 판단 결과(이번 스텝에서는 BLOCK만 사용)
+  riskDecision  RiskDecision  @default(ALLOW)
+  rejectReason  RejectReason?
+
+  // 요청 추적용(선택)
+  idempotencyKey String?      @db.VarChar(128)
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([requestedPlanId, createdAt])
+  @@index([planId, createdAt])
+  @@index([status, createdAt])
+}
